@@ -128,7 +128,7 @@ const uploadRoute = documents.post(
         filetype: validation.fileInfo!.mimeType,
         filesize: validation.fileInfo!.size,
         r2Key: r2Key,
-        status: 'processing' as const,
+        status: 'failed' as const,
         createdAt: now,
         updatedAt: now
       });
@@ -321,6 +321,73 @@ const routes = documents
         throw error;
       }
       throw ApiErrors.InternalServerError("文档删除失败");
+    }
+  })
+  .post("/process/:doc_id", async (c) => {
+    const { doc_id } = c.req.param();
+    
+    if (!doc_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+      throw ApiErrors.ValidationError("Invalid document ID format");
+    }
+    
+    const db = drizzle(c.env.DB, { schema });
+    
+    try {
+      // Get document info
+      const document = await db.query.kbDocuments.findFirst({
+        where: eq(schema.kbDocuments.id, doc_id)
+      });
+      
+      if (!document) {
+        throw ApiErrors.NotFound("文档不存在");
+      }
+
+      if (document.status === 'processing') {
+        throw ApiErrors.BadRequest("文档正在处理中，请稍后再试");
+      }
+
+      if (document.status === 'completed') {
+        throw ApiErrors.BadRequest("文档已经处理完成");
+      }
+
+      // Get file from R2
+      const r2Object = await c.env.R2.get(document.r2Key);
+      if (!r2Object) {
+        throw ApiErrors.NotFound("文件不存在");
+      }
+
+      const fileBuffer = await r2Object.arrayBuffer();
+      
+      // Import document processor
+      const { documentProcessor } = await import('../../services/document-processor');
+      
+      // Process the document
+      const result = await documentProcessor.processDocument(
+        doc_id,
+        document.kbId,
+        fileBuffer,
+        document.filename,
+        document.filetype as any,
+        db
+      );
+
+      if (!result.success) {
+        throw ApiErrors.InternalServerError(`文档处理失败: ${result.error}`);
+      }
+
+      return c.json({
+        message: "文档处理完成",
+        docId: doc_id,
+        chunks: result.chunks?.length || 0,
+        metadata: result.metadata
+      });
+
+    } catch (error) {
+      console.error("Document processing error:", error);
+      if (error instanceof Error && error.message.includes("ApiError")) {
+        throw error;
+      }
+      throw ApiErrors.InternalServerError("文档处理失败");
     }
   });
 

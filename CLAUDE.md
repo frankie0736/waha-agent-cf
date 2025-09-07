@@ -95,6 +95,7 @@ wrangler deploy --env production
 
 ### 文档管理端点
 - `POST /api/documents/upload` - 上传文档文件
+- `POST /api/documents/process/:doc_id` - 处理文档并生成切片
 - `GET /api/documents/list/:kb_id` - 获取知识库文档列表
 - `GET /api/documents/supported-formats` - 获取支持的文件格式
 - `GET /api/documents/:doc_id` - 获取文档详情
@@ -180,6 +181,13 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 文件大小限制和格式验证（50MB）
   - 安全文件命名和路径管理
   - 完整的 CRUD API 端点
+- ✅ T006: 文档解析与处理系统
+  - 多格式文档处理器（PDF, Word, Excel, PowerPoint, Text, Markdown）
+  - 智能文档切片算法（1000字符块，200字符重叠）
+  - 内容清理和格式化
+  - 切片质量验证和数据库存储
+  - 处理状态跟踪和错误处理
+  - 文档处理API端点
 
 ## 注意事项
 

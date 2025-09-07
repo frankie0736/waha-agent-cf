@@ -32,6 +32,11 @@
     "drizzle-orm": "^0.36.4",
     "drizzle-zod": "^0.5.1",
     "hono": "^4.6.13",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.10.0",
+    "pdf-parse": "^1.1.1",
+    "pptx-parser": "^1.1.7-beta.9",
+    "xlsx": "^0.18.5",
     "zod": "^4.1.5"
   },
   "devDependencies": {
