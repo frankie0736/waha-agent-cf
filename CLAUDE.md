@@ -188,6 +188,14 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 切片质量验证和数据库存储
   - 处理状态跟踪和错误处理
   - 文档处理API端点
+- ✅ T007: 网页内容抓取系统
+  - 单URL智能内容提取（linkedom库支持）
+  - Sitemap XML解析和批量处理（fast-xml-parser）
+  - 智能内容清理和主体内容识别
+  - 批量爬取队列和并发控制
+  - Robots.txt合规性检查
+  - 抓取频率限制和重试机制
+  - 完整的网页爬取API端点（/api/web-scraper/*）
 
 ## 注意事项
 
@@ -205,7 +213,7 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T006: 文档解析与处理
-- T007: 向量化存储与检索
-- T008: 智能体管理系统
+- T008: 向量化与 Vectorize 集成
+- T009: 知识库管理系统
+- T010: 智能体管理系统
 - ...等

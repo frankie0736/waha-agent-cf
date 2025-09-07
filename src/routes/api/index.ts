@@ -5,6 +5,7 @@ import type { Env } from "../../index";
 import { ApiErrors } from "../../middleware/error-handler";
 import { documents } from "./documents";
 import { knowledgeBase } from "./knowledge-base";
+import webScraper from "./web-scraper";
 
 // API 路由主入口
 const api = new Hono<{ Bindings: Env }>();
@@ -216,7 +217,8 @@ const routes = api
   .route("/", testRoute)
   .route("/", errorTestRoute)
   .route("/knowledge-base", knowledgeBase)
-  .route("/documents", documents);
+  .route("/documents", documents)
+  .route("/web-scraper", webScraper);
 
 // 导出类型以供 RPC 客户端使用
 export type ApiType = typeof routes;
