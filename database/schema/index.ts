@@ -4,9 +4,11 @@ export * from "./auth.schema";
 export * from "./knowledge-base";
 export * from "./agents";
 export * from "./whatsapp";
+export * from "./dialog-testing";
 
 import { agentKbLinks, agents } from "./agents";
 import { accounts, sessions, verifications } from "./auth.schema";
+import { testCases, testConversations, testMessages, testRuns, testSessions } from "./dialog-testing";
 import { kbChunks, kbDocuments, kbSpaces } from "./knowledge-base";
 // 重新导出所有表以便于查询
 import { users } from "./users";
@@ -26,4 +28,9 @@ export const tables = {
   conversations,
   messages,
   jobs,
+  testSessions,
+  testConversations,
+  testMessages,
+  testCases,
+  testRuns,
 } as const;

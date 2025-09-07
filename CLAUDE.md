@@ -234,6 +234,17 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 从模板快速创建智能体功能
   - 与向量化搜索的无缝集成
   - TypeScript严格模式完全兼容
+- ✅ T012: 对话测试系统
+  - 完整的对话测试框架（/api/dialog-testing/*）
+  - 测试会话管理和对话跟踪系统
+  - 实时消息发送和AI响应测试
+  - 知识库检索结果和调试信息显示
+  - 测试用例创建和自动化运行
+  - 性能指标收集和分析工具
+  - 错误分析和响应时间分布统计
+  - 测试历史记录和结果比较
+  - 14个综合API端点支持所有测试场景
+  - 与智能体和知识库系统完全集成
 
 ## 注意事项
 
@@ -251,6 +262,7 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T012: 对话测试系统
 - T013: WhatsApp 集成
+- T014: WhatsApp 会话管理
+- T015: Webhook 处理系统
 - ...等
