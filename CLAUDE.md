@@ -224,6 +224,16 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 指数退避重试机制和自定义错误类型
   - 请求指标收集和性能监控
   - 完整的测试API端点（/api/aihubmix/*）
+- ✅ T011: 智能体配置管理
+  - 完整的智能体CRUD操作API（/api/agents/*）
+  - 智能体模板系统（客服助手、销售助手、技术支持）
+  - 系统提示词编辑和验证（最长4000字符）
+  - AI模型选择和参数配置（温度、最大令牌数等）
+  - 知识库关联和优先级配置系统
+  - 智能体实时测试和预览功能
+  - 从模板快速创建智能体功能
+  - 与向量化搜索的无缝集成
+  - TypeScript严格模式完全兼容
 
 ## 注意事项
 
@@ -241,7 +251,6 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T011: 智能体配置管理
 - T012: 对话测试系统
 - T013: WhatsApp 集成
 - ...等
