@@ -325,6 +325,17 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 增强的性能指标收集（WPM统计、时间分布）
   - 指数退避重试机制（最多3次重试）
   - 支持中英文混合文本的智能分段
+- ✅ T020: 前端基础架构
+  - React 18 + TypeScript + Vite 项目创建和配置
+  - TanStack Router 路由系统集成（类型安全路由）
+  - TanStack Query 状态管理配置（缓存和同步）
+  - Radix UI + Tailwind CSS UI框架设置
+  - Hono RPC 客户端配置（类型安全API调用）
+  - 基础布局组件（RootLayout、DashboardLayout）
+  - 导航系统实现（侧边栏、顶部栏）
+  - 环境变量配置（.env.example）
+  - 前端项目完整文档（README.md）
+  - 待完成：Better Auth 认证状态管理集成
 
 ## 注意事项
 
@@ -342,7 +353,8 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T020: 前端基础架构
 - T021: 用户认证界面
 - T022: 知识库管理界面
+- T023: 智能体配置界面
+- T024: WhatsApp 机器人管理界面
 - ...等前端开发任务
