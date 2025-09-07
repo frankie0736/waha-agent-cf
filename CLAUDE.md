@@ -304,6 +304,17 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - safeTrim函数防止AI误触发
   - 介入状态查询和统计功能
   - 完整的测试端点验证控制逻辑
+- ✅ T018: 消息处理队列系统
+  - 三阶段队列处理流水线（retrieve → infer → reply）
+  - q_retrieve队列：知识库向量检索，多知识库优先级排序
+  - q_infer队列：AIHubMix智能推理，上下文管理
+  - q_reply队列：拟人化回复，打字指示器，消息分段，随机延迟
+  - 每个队列都集成人工介入检查
+  - jobs表跟踪处理状态（pending/processing/completed/failed/suppressed）
+  - Cloudflare Queues配置（wrangler.toml）
+  - 队列处理器导出和路由（/src/index.ts）
+  - 完整的错误处理和重试机制
+  - 性能指标收集（KV存储）
 
 ## 注意事项
 

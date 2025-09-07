@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { prettyJSON } from "hono/pretty-json";
-import type { IncomingRequestCfProperties } from "@cloudflare/workers-types";
+import type { IncomingRequestCfProperties, MessageBatch, ExecutionContext } from "@cloudflare/workers-types";
 import { createAuth } from "./lib/auth";
 import { authDemo } from "./routes/auth-demo";
 import { api } from "./routes/api";
@@ -101,9 +101,52 @@ app.notFound((c) => {
 // Error handler - 使用自定义错误处理中间件
 app.onError(errorHandler());
 
-// 导出主应用和类型（用于 RPC 客户端）
-export default app;
-export type AppType = typeof app;
+// Import queue handlers - T018
+import { handleRetrieveQueue, handleInferQueue, handleReplyQueue } from "./queues";
+import type { RetrieveQueueMessage, InferQueueMessage, ReplyQueueMessage } from "./queues";
 
 // 导出 Durable Objects - T016
 export { ChatSessionDO } from "./durable-objects/chat-session";
+
+// 导出类型（用于 RPC 客户端）
+export type AppType = typeof app;
+
+// Queue handler export for Cloudflare Workers - Combined with app
+export default {
+  fetch: app.fetch,
+  
+  // Queue consumers - T018 Message Processing Queues
+  async queue(
+    batch: MessageBatch<RetrieveQueueMessage | InferQueueMessage | ReplyQueueMessage>,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    // Route to appropriate handler based on queue name
+    const queueName = batch.queue;
+    
+    console.log(`[Queue] Processing ${batch.messages.length} messages from queue: ${queueName}`);
+    
+    try {
+      switch (queueName) {
+        case 'waha-agent-retrieve':
+          await handleRetrieveQueue(batch as MessageBatch<RetrieveQueueMessage>, env);
+          break;
+          
+        case 'waha-agent-infer':
+          await handleInferQueue(batch as MessageBatch<InferQueueMessage>, env);
+          break;
+          
+        case 'waha-agent-reply':
+          await handleReplyQueue(batch as MessageBatch<ReplyQueueMessage>, env);
+          break;
+          
+        default:
+          console.error(`Unknown queue: ${queueName}`);
+      }
+    } catch (error) {
+      console.error(`[Queue] Error processing ${queueName}:`, error);
+      // Cloudflare will automatically retry failed messages
+      throw error;
+    }
+  }
+};
