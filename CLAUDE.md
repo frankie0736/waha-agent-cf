@@ -315,6 +315,16 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 队列处理器导出和路由（/src/index.ts）
   - 完整的错误处理和重试机制
   - 性能指标收集（KV存储）
+- ✅ T019: 拟人化回复系统
+  - HumanizationService类实现（/src/services/humanization.ts）
+  - 基于WPM（Words Per Minute）的打字速度模拟（20-60 WPM可配置）
+  - 智能消息分段算法（段落、句子、自然断点识别）
+  - 可配置速度预设（fast/normal/slow/custom）
+  - 思考延迟、打字时长、段间停顿等人性化特征
+  - 集成到q_reply队列处理器，替换原有简单延迟逻辑
+  - 增强的性能指标收集（WPM统计、时间分布）
+  - 指数退避重试机制（最多3次重试）
+  - 支持中英文混合文本的智能分段
 
 ## 注意事项
 
@@ -332,7 +342,7 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T017: 人工介入控制系统
-- T018: 消息处理队列
-- T019: 拟人化回复系统
-- ...等
+- T020: 前端基础架构
+- T021: 用户认证界面
+- T022: 知识库管理界面
+- ...等前端开发任务

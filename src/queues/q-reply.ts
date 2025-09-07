@@ -11,43 +11,35 @@ import type { Env } from "../index";
 import type { ReplyQueueMessage, JobStatus } from "./types";
 import { ManualInterventionController, safeTrim } from "../services/manual-intervention";
 import { WAHAClient } from "../services/waha";
+import { HumanizationService, createHumanizationService, type HumanizationConfig } from "../services/humanization";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and } from "drizzle-orm";
 import * as schema from "../../database/schema";
 
 /**
- * Split long messages into segments for more natural conversation
+ * Get humanization config based on agent settings or defaults
  */
-function splitMessage(text: string, maxLength = 1000): string[] {
-  if (text.length <= maxLength) {
-    return [text];
-  }
+function getHumanizationConfig(agentConfig?: any): Partial<HumanizationConfig> {
+  // Could be extended to read from agent config or environment
+  const config: Partial<HumanizationConfig> = {};
   
-  const segments: string[] = [];
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  let currentSegment = '';
-  
-  for (const sentence of sentences) {
-    if ((currentSegment + sentence).length > maxLength && currentSegment) {
-      segments.push(currentSegment.trim());
-      currentSegment = sentence;
-    } else {
-      currentSegment += sentence;
+  // Check if agent has specific humanization settings
+  if (agentConfig?.humanization) {
+    const h = agentConfig.humanization;
+    if (h.speed === 'fast') {
+      config.minWPM = 50;
+      config.maxWPM = 80;
+      config.minThinkingDelay = 300;
+      config.maxThinkingDelay = 1000;
+    } else if (h.speed === 'slow') {
+      config.minWPM = 15;
+      config.maxWPM = 30;
+      config.minThinkingDelay = 1000;
+      config.maxThinkingDelay = 3000;
     }
   }
   
-  if (currentSegment) {
-    segments.push(currentSegment.trim());
-  }
-  
-  return segments;
-}
-
-/**
- * Generate a random delay for more human-like responses
- */
-function randomDelay(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return config;
 }
 
 /**
@@ -177,55 +169,88 @@ export async function handleReplyQueue(
       // Apply safety trim to prevent accidental intervention triggers
       const safeResponse = safeTrim(aiResponse);
       
-      // Split message into segments for natural conversation
-      const segments = splitMessage(safeResponse);
+      // Get agent configuration for humanization settings
+      const agent = await db.query.agents.findFirst({
+        where: eq(schema.agents.id, metadata?.agentId || '')
+      });
       
-      console.log(`[q_reply] Sending ${segments.length} message segments to ${whatsappChatId}`);
+      // Create humanization service with agent-specific config
+      const humanizationConfig = getHumanizationConfig(agent);
+      const humanization = createHumanizationService('normal', humanizationConfig);
+      
+      // Segment message intelligently
+      const segments = humanization.segmentMessage(safeResponse);
+      
+      // Optimize reply rhythm
+      const replyPlan = humanization.optimizeReplyRhythm(segments);
+      
+      console.log(`[q_reply] Sending ${segments.length} message segments to ${whatsappChatId} with humanized timing`);
       
       let allSegmentsSent = true;
       const sentSegments: string[] = [];
+      const sendErrors: Array<{ segment: number; error: string }> = [];
       
-      for (let i = 0; i < segments.length; i++) {
+      for (let i = 0; i < replyPlan.length; i++) {
+        const { segment, thinkingDelay, typingDuration, postDelay } = replyPlan[i];
+        
         try {
-          // Send typing indicator
-          await wahaClient.startTyping(sessionId, whatsappChatId);
-          
-          // Simulate typing time (50-100ms per character)
-          const typingDuration = randomDelay(
-            segments[i].length * 50,
-            segments[i].length * 100
-          );
-          await sleep(Math.min(typingDuration, 5000)); // Cap at 5 seconds
-          
-          // Stop typing
-          await wahaClient.stopTyping(sessionId, whatsappChatId);
-          
-          // Small pause before sending
-          await sleep(randomDelay(300, 800));
-          
-          // Send the message segment
-          const sendResult = await wahaClient.sendText(
-            sessionId,
-            whatsappChatId,
-            segments[i]
-          );
-          
-          if (!sendResult.success) {
-            throw new Error(`Failed to send segment ${i + 1}: ${sendResult.error}`);
+          // Thinking/reading delay before typing
+          if (thinkingDelay > 0) {
+            console.log(`[q_reply] Thinking delay: ${thinkingDelay}ms`);
+            await sleep(thinkingDelay);
           }
           
-          sentSegments.push(segments[i]);
-          console.log(`[q_reply] Sent segment ${i + 1}/${segments.length}`);
-          
-          // Pause between segments
-          if (i < segments.length - 1) {
-            await sleep(randomDelay(1000, 2000));
+          // Send typing indicator if enabled
+          if (humanization.getConfig().enableTypingIndicator) {
+            await wahaClient.startTyping(sessionId, whatsappChatId);
+            
+            // Simulate realistic typing duration based on WPM
+            console.log(`[q_reply] Typing for ${typingDuration}ms (~${Math.round(segment.length / 5 / (typingDuration / 60000))} WPM)`);
+            await sleep(Math.min(typingDuration, 10000)); // Cap at 10 seconds for very long segments
+            
+            // Stop typing
+            await wahaClient.stopTyping(sessionId, whatsappChatId);
           }
+          
+          // Post-typing delay before sending
+          if (postDelay > 0) {
+            await sleep(postDelay);
+          }
+          
+          // Send the message segment with retry logic
+          const sendWithRetry = async () => {
+            const sendResult = await wahaClient.sendText(
+              sessionId,
+              whatsappChatId,
+              segment
+            );
+            
+            if (!sendResult.success) {
+              throw new Error(`Failed to send: ${sendResult.error}`);
+            }
+            
+            return sendResult;
+          };
+          
+          await humanization.executeWithRetry(sendWithRetry);
+          
+          sentSegments.push(segment);
+          console.log(`[q_reply] Sent segment ${i + 1}/${segments.length} (${segment.length} chars)`);
           
         } catch (error) {
-          console.error(`[q_reply] Failed to send segment ${i + 1}:`, error);
+          console.error(`[q_reply] Failed to send segment ${i + 1} after retries:`, error);
+          sendErrors.push({
+            segment: i + 1,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
           allSegmentsSent = false;
-          break;
+          
+          // Decide whether to continue with remaining segments
+          if (i === 0) {
+            // If first segment fails, stop entirely
+            break;
+          }
+          // Otherwise, continue with remaining segments
         }
       }
       
@@ -257,7 +282,13 @@ export async function handleReplyQueue(
           eq(schema.messages.role, 'assistant')
         ));
       
-      // Update job status
+      // Update job status with enhanced metrics
+      const totalTypingTime = replyPlan.reduce((acc, p) => acc + p.typingDuration, 0);
+      const totalThinkingTime = replyPlan.reduce((acc, p) => acc + p.thinkingDelay, 0);
+      const avgWPM = segments.length > 0 
+        ? Math.round(segments.join(' ').length / 5 / (totalTypingTime / 60000))
+        : 0;
+      
       await db
         .update(schema.jobs)
         .set({ 
@@ -268,6 +299,13 @@ export async function handleReplyQueue(
             segmentsSent: sentSegments.length,
             totalSegments: segments.length,
             messageLength: safeResponse.length,
+            humanization: {
+              totalTypingTime,
+              totalThinkingTime,
+              avgWPM,
+              segmentLengths: segments.map(s => s.length),
+              errors: sendErrors
+            },
             inferenceTime: metadata?.inferenceTime,
             tokensUsed: metadata?.tokensUsed,
             model: metadata?.model

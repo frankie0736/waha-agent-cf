@@ -77,6 +77,7 @@ export interface ReplyQueueMessage {
     inferenceTime: number;   // Time taken for AI inference (ms)
     tokensUsed: number;      // Tokens consumed
     model: string;           // Model used
+    agentId?: string;        // Agent ID for configuration lookup
   };
 }
 

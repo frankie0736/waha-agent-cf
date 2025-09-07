@@ -234,7 +234,8 @@ export async function handleInferQueue(
         metadata: {
           inferenceTime: Date.now() - startTime,
           tokensUsed,
-          model: agentConfig.model
+          model: agentConfig.model,
+          agentId: agentConfig.id
         }
       };
       
