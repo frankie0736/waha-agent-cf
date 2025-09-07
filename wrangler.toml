@@ -61,6 +61,10 @@ queue = "waha-agent-infer"
 binding = "QUEUE_REPLY"
 queue = "waha-agent-reply"
 
+[[queues.producers]]
+binding = "QUEUE_EMBED"
+queue = "waha-agent-embed"
+
 # 队列消费者
 [[queues.consumers]]
 queue = "waha-agent-retrieve"
@@ -75,6 +79,11 @@ max_batch_timeout = 5
 [[queues.consumers]]
 queue = "waha-agent-reply"
 max_batch_size = 5
+max_batch_timeout = 5
+
+[[queues.consumers]]
+queue = "waha-agent-embed"
+max_batch_size = 10
 max_batch_timeout = 5
 
 # 环境配置

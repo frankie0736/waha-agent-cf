@@ -28,16 +28,21 @@ export interface Env {
   QUEUE_RETRIEVE: Queue<unknown>;
   QUEUE_INFER: Queue<unknown>;
   QUEUE_REPLY: Queue<unknown>;
+  QUEUE_EMBED?: Queue;
 
   // Environment variables
   ENVIRONMENT: string;
 
   // Secrets (set via wrangler secret)
   BETTER_AUTH_SECRET?: string;
+  BETTER_AUTH_URL?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   ENCRYPTION_KEY?: string;
   ADMIN_EMAILS?: string;
+  AIHUBMIX_API_KEY?: string;
+  WAHA_API_URL?: string;
+  WAHA_API_KEY?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();

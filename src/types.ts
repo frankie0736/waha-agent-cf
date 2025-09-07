@@ -22,10 +22,13 @@ export interface Env {
   R2_BUCKET?: R2Bucket;
   
   // Vectorize 索引
-  VECTORIZE_INDEX?: VectorizeIndex;
+  VECTORIZE?: VectorizeIndex;
   
   // Durable Objects
   DURABLE_OBJECTS?: DurableObjectNamespace;
+
+  // Queue bindings
+  QUEUE_EMBED?: Queue;
   
   // 环境变量
   BETTER_AUTH_SECRET?: string;

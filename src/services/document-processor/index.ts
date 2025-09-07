@@ -8,6 +8,7 @@ import { WordProcessor } from './processors/word-processor';
 import { ExcelProcessor } from './processors/excel-processor';
 import { PowerPointProcessor } from './processors/powerpoint-processor';
 import { TextProcessor } from './processors/text-processor';
+import { VectorEmbeddingManager } from '../vector-embedding';
 
 import type { 
   DocumentProcessor, 
@@ -15,10 +16,12 @@ import type {
   ProcessedDocument, 
   DocumentChunk 
 } from './types';
+import type { Env } from '../../types';
 
 export class DocumentProcessorService {
   private processors: Map<string, DocumentProcessor> = new Map();
   private chunker: DocumentChunker;
+  private vectorManager: VectorEmbeddingManager | undefined;
 
   constructor() {
     this.initializeProcessors();
@@ -28,6 +31,18 @@ export class DocumentProcessorService {
       preserveParagraphs: true,
       minChunkSize: 50,
     });
+  }
+
+  /**
+   * Initialize vector embedding manager
+   */
+  setVectorManager(env: Env): void {
+    try {
+      this.vectorManager = new VectorEmbeddingManager(env);
+    } catch (error) {
+      console.warn('Vector embedding manager not available:', error);
+      // this.vectorManager remains undefined
+    }
   }
 
   /**
@@ -120,6 +135,53 @@ export class DocumentProcessorService {
 
       // Save chunks to database
       await this.saveChunksToDatabase(db, validChunks);
+
+      // Trigger vectorization if available
+      if (this.vectorManager) {
+        try {
+          console.log(`Starting vectorization for ${validChunks.length} chunks`);
+          
+          try {
+            // Try to queue chunks for async processing
+            await this.vectorManager.queueChunksForEmbedding(
+              validChunks.map(chunk => ({
+                id: chunk.id,
+                kbId: chunk.kbId,
+                docId: chunk.docId,
+                chunkIndex: chunk.chunkIndex,
+                text: chunk.text
+              }))
+            );
+
+            console.log(`Successfully queued ${validChunks.length} chunks for vectorization`);
+          } catch (queueError) {
+            // If queuing fails, process synchronously
+            console.log('Queue not available, processing vectors synchronously');
+            
+            const vectorResult = await this.vectorManager.processChunksForVectorization(
+              validChunks.map(chunk => ({
+                id: chunk.id,
+                kbId: chunk.kbId,
+                docId: chunk.docId,
+                chunkIndex: chunk.chunkIndex,
+                text: chunk.text,
+                createdAt: chunk.createdAt
+              }))
+            );
+
+            if (vectorResult.success) {
+              console.log(`Successfully vectorized ${vectorResult.processedCount} chunks`);
+            } else {
+              console.warn(`Vectorization partially failed: ${vectorResult.failedCount} failed, errors:`, vectorResult.errors);
+            }
+          }
+        } catch (vectorError) {
+          console.warn('Failed to queue chunks for vectorization:', vectorError);
+          // Don't fail the document processing if vectorization fails
+        }
+      } else {
+        console.log('Vector embedding manager not available, skipping vectorization');
+      }
 
       // Update document status to completed
       await this.updateDocumentStatus(db, docId, 'completed');

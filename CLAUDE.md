@@ -196,6 +196,15 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - Robots.txt合规性检查
   - 抓取频率限制和重试机制
   - 完整的网页爬取API端点（/api/web-scraper/*）
+- ✅ T008: 向量化与 Vectorize 集成
+  - AIHubMix Embeddings API 集成和批量处理
+  - Cloudflare Vectorize 向量数据库集成
+  - 向量化处理队列系统（QUEUE_EMBED）
+  - 语义搜索和相似度匹配功能
+  - 向量索引管理和元数据关联
+  - 完整的向量搜索API端点（/api/vector-search/*）
+  - 与文档处理管道的无缝集成
+  - TypeScript严格模式兼容性
 
 ## 注意事项
 
@@ -213,7 +222,7 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T008: 向量化与 Vectorize 集成
 - T009: 知识库管理系统
 - T010: 智能体管理系统
+- T011: WhatsApp 集成
 - ...等

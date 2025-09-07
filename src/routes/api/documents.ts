@@ -361,6 +361,9 @@ const routes = documents
       // Import document processor
       const { documentProcessor } = await import('../../services/document-processor');
       
+      // Initialize vector manager for the document processor
+      documentProcessor.setVectorManager(c.env);
+      
       // Process the document
       const result = await documentProcessor.processDocument(
         doc_id,

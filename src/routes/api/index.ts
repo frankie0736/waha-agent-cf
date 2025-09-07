@@ -6,6 +6,7 @@ import { ApiErrors } from "../../middleware/error-handler";
 import { documents } from "./documents";
 import { knowledgeBase } from "./knowledge-base";
 import webScraper from "./web-scraper";
+import vectorSearch from "./vector-search";
 
 // API 路由主入口
 const api = new Hono<{ Bindings: Env }>();
@@ -218,7 +219,8 @@ const routes = api
   .route("/", errorTestRoute)
   .route("/knowledge-base", knowledgeBase)
   .route("/documents", documents)
-  .route("/web-scraper", webScraper);
+  .route("/web-scraper", webScraper)
+  .route("/vector-search", vectorSearch);
 
 // 导出类型以供 RPC 客户端使用
 export type ApiType = typeof routes;
