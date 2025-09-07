@@ -5,6 +5,7 @@ import { LoginPage } from './pages/Login'
 import { AuthCallbackPage } from './pages/AuthCallback'
 import { SettingsPage } from './pages/Settings'
 import { KnowledgeBasePage } from './pages/KnowledgeBase'
+import { AgentsPage } from './pages/Agents'
 import { useRequireAuth } from './contexts/AuthContext'
 
 // Protected route wrapper
@@ -94,12 +95,7 @@ const knowledgeBasesRoute = createRoute({
 const agentsRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'agents',
-  component: () => (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-4">智能体管理</h2>
-      <p className="text-gray-600">配置和管理您的智能体</p>
-    </div>
-  ),
+  component: AgentsPage,
 })
 
 // WhatsApp sessions route
