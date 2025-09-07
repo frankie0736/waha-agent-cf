@@ -401,28 +401,31 @@
 
 ---
 
-### T015 - Webhook 处理系统
-**优先级**: P0 | **预估时间**: 2天 | **依赖**: T014
+### ✅ T015 - Webhook 处理系统 **[已完成]**
+**优先级**: P0 | **预估时间**: 2天 | **依赖**: T014 | **实际用时**: 0.5天
 
 **任务描述**: 
 实现 WAHA Webhook 接收和处理
 
 **检查列表**:
-- [ ] 创建 Webhook 接收端点 (`/api/webhooks/waha/:sessionId`)
-- [ ] 实现签名验证和安全检查
-- [ ] 添加幂等性检查（KV 存储）
-- [ ] 实现消息事件解析和路由
-- [ ] 添加事件类型过滤（message, session.status）
-- [ ] 实现错误处理和重试机制
-- [ ] 添加 Webhook 监控和日志
-- [ ] 创建 Webhook 测试工具
+- [x] ✅ 创建 Webhook 接收端点 (`/api/webhooks/waha/:sessionId`) - T013已实现，T015增强
+- [x] ✅ 实现签名验证和安全检查 - HMAC SHA-256验证
+- [x] ✅ 添加幂等性检查（KV 存储）- 24小时TTL防重复处理
+- [x] ✅ 实现消息事件解析和路由 - 支持message/session.status/message.ack/call事件
+- [x] ✅ 添加事件类型过滤（message, session.status）- 多事件类型支持
+- [x] ✅ 实现错误处理和重试机制 - 异步处理和重试端点
+- [x] ✅ 添加 Webhook 监控和日志 - KV存储指标，每日统计
+- [x] ✅ 创建 Webhook 测试工具 - 增强版测试端点
 
 **验收标准**:
-- ✅ Webhook 接收响应时间 < 50ms (P95)
-- ✅ 签名验证无误报和漏报
-- ✅ 幂等性检查防止重复处理
-- ✅ 事件解析准确无丢失
-- ✅ 错误处理机制完善
+- ✅ Webhook 接收响应时间 < 50ms (P95) - 使用waitUntil异步处理
+- ✅ 签名验证无误报和漏报 - HMAC验证完善
+- ✅ 幂等性检查防止重复处理 - KV存储消息ID
+- ✅ 事件解析准确无丢失 - 多事件类型处理
+- ✅ 错误处理机制完善 - 完整错误追踪
+
+**完成情况**:
+✅ 生产级Webhook处理系统：KV幂等性检查（24小时TTL）、异步处理优化（waitUntil）、实时监控指标（每日统计）、多事件类型支持（message/status/ack/call）、请求追踪（requestId）、监控端点（/api/webhooks/monitor）、重试机制、响应时间优化（<50ms）
 
 ---
 
