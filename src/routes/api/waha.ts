@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, count } from "drizzle-orm";
 import type { Env } from "../../index";
 import * as schema from "../../../database/schema";
 import { ApiErrors } from "../../middleware/error-handler";
@@ -11,6 +11,32 @@ import { generateId } from "../../utils/id";
 // Note: Using Web Crypto API instead of Node.js crypto
 
 const waha = new Hono<{ Bindings: Env }>();
+
+// 检查用户WhatsApp会话配额
+async function checkUserQuota(db: ReturnType<typeof drizzle>, userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+  // 获取用户信息和配额
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId)
+  });
+  
+  if (!user) {
+    throw ApiErrors.NotFound("用户不存在");
+  }
+
+  // 获取当前用户的WhatsApp会话数量
+  const currentSessionsResult = await db
+    .select({ count: sql`count(*)` })
+    .from(schema.waSessions)
+    .where(eq(schema.waSessions.userId, userId));
+  
+  const currentSessions = Number(currentSessionsResult[0]?.count || 0);
+  
+  return {
+    allowed: currentSessions < user.waLimit,
+    current: currentSessions,
+    limit: user.waLimit
+  };
+}
 
 // 创建 WhatsApp 会话
 const createSessionRoute = waha.post(
@@ -29,6 +55,14 @@ const createSessionRoute = waha.post(
     const userId = "test-user-1";
 
     try {
+      // 检查用户WhatsApp配额
+      const quotaCheck = await checkUserQuota(db, userId);
+      if (!quotaCheck.allowed) {
+        throw ApiErrors.BadRequest(
+          `WhatsApp 会话数量已达上限 (${quotaCheck.current}/${quotaCheck.limit})，请升级套餐或删除现有会话`
+        );
+      }
+
       // 检查会话是否已存在
       const existingSession = await db.query.waSessions.findFirst({
         where: eq(schema.waSessions.waAccountId, waAccountId)
@@ -127,7 +161,7 @@ const listSessionsRoute = waha.get(
     const offset = (page - 1) * limit;
 
     try {
-      let whereCondition = eq(schema.waSessions.userId, userId);
+      let whereCondition: any = eq(schema.waSessions.userId, userId);
       if (status) {
         whereCondition = and(whereCondition, eq(schema.waSessions.status, status));
       }
@@ -568,6 +602,241 @@ const getSessionStatsRoute = waha.get(
   }
 );
 
+// QR码轮询 - 客户端可以定期调用此端点获取最新状态和QR码
+const pollQRCodeRoute = waha.get(
+  "/sessions/:sessionId/poll",
+  zValidator("query", z.object({
+    timeout: z.string().optional().default("30").transform(Number) // 轮询超时时间（秒）
+  })),
+  async (c) => {
+    const sessionId = c.req.param("sessionId");
+    const { timeout } = c.req.valid("query");
+    const db = drizzle(c.env.DB, { schema });
+    
+    // TODO: 获取当前用户ID（认证系统集成后）
+    const userId = "test-user-1";
+
+    try {
+      const session = await db.query.waSessions.findFirst({
+        where: and(
+          eq(schema.waSessions.id, sessionId),
+          eq(schema.waSessions.userId, userId)
+        )
+      });
+
+      if (!session) {
+        throw ApiErrors.NotFound("会话不存在");
+      }
+
+      const wahaClient = new WAHAClient(session.wahaApiUrl, session.wahaApiKey, {
+        timeoutMs: Math.min(timeout * 1000, 60000) // 最多60秒
+      });
+
+      let attempts = 0;
+      const maxAttempts = Math.max(1, timeout / 5); // 每5秒检查一次
+      let latestStatus = session.status;
+      let qrCode = session.qrCode;
+
+      // 轮询直到状态改变或超时
+      while (attempts < maxAttempts) {
+        try {
+          const status = await wahaClient.getSessionStatus(session.waAccountId);
+          latestStatus = status.status as any;
+          
+          if (status.qrCode) {
+            qrCode = status.qrCode;
+          }
+
+          // 如果状态不是 connecting 或 scan_qr_code，说明已连接或失败
+          if (latestStatus !== "connecting" && latestStatus !== "scan_qr_code") {
+            break;
+          }
+
+          // 如果是扫码状态且有新QR码，也返回
+          if (latestStatus === "scan_qr_code" && qrCode && qrCode !== session.qrCode) {
+            break;
+          }
+
+          attempts++;
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); // 等待5秒
+          }
+        } catch (pollError) {
+          console.warn(`Polling attempt ${attempts + 1} failed:`, pollError);
+          attempts++;
+        }
+      }
+
+      // 更新数据库中的状态
+      if (latestStatus !== session.status || qrCode !== session.qrCode) {
+        await db
+          .update(schema.waSessions)
+          .set({
+            status: latestStatus,
+            qrCode,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.waSessions.id, sessionId));
+      }
+
+      return c.json({
+        success: true,
+        data: {
+          sessionId,
+          status: latestStatus,
+          qrCode,
+          statusChanged: latestStatus !== session.status,
+          qrChanged: qrCode !== session.qrCode,
+          pollingAttempts: attempts
+        }
+      });
+
+    } catch (error: any) {
+      if (error.status) throw error;
+      console.error("Failed to poll session status:", error);
+      throw ApiErrors.InternalServerError("轮询会话状态失败");
+    }
+  }
+);
+
+// 会话健康检查
+const healthCheckRoute = waha.get(
+  "/sessions/health",
+  zValidator("query", z.object({
+    checkWaha: z.string().optional().default("true").transform(val => val === "true")
+  })),
+  async (c) => {
+    const { checkWaha } = c.req.valid("query");
+    const db = drizzle(c.env.DB, { schema });
+    
+    // TODO: 获取当前用户ID（认证系统集成后）
+    const userId = "test-user-1";
+
+    try {
+      // 获取用户所有会话
+      const sessions = await db.query.waSessions.findMany({
+        where: eq(schema.waSessions.userId, userId),
+        orderBy: [desc(schema.waSessions.updatedAt)]
+      });
+
+      const healthResults = [];
+
+      // 检查每个会话的健康状态
+      for (const session of sessions) {
+        const result: any = {
+          sessionId: session.id,
+          waAccountId: session.waAccountId,
+          dbStatus: session.status,
+          healthy: true,
+          lastUpdated: session.updatedAt,
+          issues: []
+        };
+
+        // 检查会话是否长时间未更新
+        const lastUpdateTime = new Date(session.updatedAt || new Date()).getTime();
+        const now = Date.now();
+        const hourssSinceUpdate = (now - lastUpdateTime) / (1000 * 60 * 60);
+
+        if (hourssSinceUpdate > 24) {
+          result.issues.push(`会话超过24小时未更新 (${hourssSinceUpdate.toFixed(1)}小时)`);
+          result.healthy = false;
+        }
+
+        // 如果需要检查WAHA状态
+        if (checkWaha && session.status !== "stopped") {
+          try {
+            const wahaClient = new WAHAClient(session.wahaApiUrl, session.wahaApiKey, {
+              timeoutMs: 5000 // 5秒超时
+            });
+            
+            const wahaStatus = await wahaClient.getSessionStatus(session.waAccountId);
+            result.wahaStatus = wahaStatus.status;
+            
+            // 检查数据库状态与WAHA状态是否一致
+            if (wahaStatus.status !== session.status) {
+              result.issues.push(`状态不一致: DB(${session.status}) vs WAHA(${wahaStatus.status})`);
+              result.healthy = false;
+            }
+          } catch (wahaError: any) {
+            result.issues.push(`WAHA连接失败: ${wahaError.message}`);
+            result.healthy = false;
+            result.wahaError = wahaError.message;
+          }
+        }
+
+        healthResults.push(result);
+      }
+
+      const totalSessions = sessions.length;
+      const healthySessions = healthResults.filter(r => r.healthy).length;
+      const unhealthySessions = totalSessions - healthySessions;
+
+      return c.json({
+        success: true,
+        data: {
+          summary: {
+            totalSessions,
+            healthySessions,
+            unhealthySessions,
+            healthRate: totalSessions > 0 ? healthySessions / totalSessions : 1
+          },
+          sessions: healthResults,
+          checkedAt: new Date()
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Health check failed:", error);
+      throw ApiErrors.InternalServerError("健康检查失败");
+    }
+  }
+);
+
+// 用户配额信息
+const getUserQuotaRoute = waha.get(
+  "/quota",
+  async (c) => {
+    const db = drizzle(c.env.DB, { schema });
+    
+    // TODO: 获取当前用户ID（认证系统集成后）
+    const userId = "test-user-1";
+
+    try {
+      const quotaCheck = await checkUserQuota(db, userId);
+      
+      const user = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId)
+      });
+
+      return c.json({
+        success: true,
+        data: {
+          userId: user?.id,
+          whatsapp: {
+            current: quotaCheck.current,
+            limit: quotaCheck.limit,
+            available: quotaCheck.limit - quotaCheck.current,
+            utilizationRate: quotaCheck.limit > 0 ? quotaCheck.current / quotaCheck.limit : 0
+          },
+          otherLimits: {
+            knowledgeBase: {
+              limit: user?.kbLimit || 0
+            },
+            agents: {
+              limit: user?.agentLimit || 0
+            }
+          }
+        }
+      });
+
+    } catch (error: any) {
+      if (error.status) throw error;
+      console.error("Failed to get user quota:", error);
+      throw ApiErrors.InternalServerError("获取用户配额失败");
+    }
+  }
+);
+
 // 组合所有路由
 export const wahaRoutes = waha
   .route("/", createSessionRoute)
@@ -578,6 +847,9 @@ export const wahaRoutes = waha
   .route("/", updateAutoReplyRoute)
   .route("/", getQRCodeRoute)
   .route("/", testConnectionRoute)
-  .route("/", getSessionStatsRoute);
+  .route("/", getSessionStatsRoute)
+  .route("/", pollQRCodeRoute)
+  .route("/", healthCheckRoute)
+  .route("/", getUserQuotaRoute);
 
 export { wahaRoutes as waha };
