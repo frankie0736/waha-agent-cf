@@ -208,7 +208,7 @@ async function processWebhookAsync(
     
     switch (eventType) {
       case "message":
-        await handleMessageEvent(db, session, webhookData, requestId);
+        await handleMessageEvent(db, session, webhookData, requestId, env);
         break;
       
       case "session.status":
@@ -247,19 +247,20 @@ async function processWebhookAsync(
   }
 }
 
-// 处理消息事件（优化版）
+// 处理消息事件（集成 ChatSessionDO）
 async function handleMessageEvent(
   db: ReturnType<typeof drizzle>,
   session: any,
   webhookData: any,
-  requestId: string
+  requestId: string,
+  env: Env
 ): Promise<void> {
   try {
     const message = webhookData.payload || webhookData.data;
     if (!message) return;
 
-    // 构建聊天键
-    const chatKey = `${session.waAccountId}:${message.from}`;
+    // 构建聊天键 - 格式: userId:waAccountId:whatsappChatId
+    const chatKey = `${session.userId}:${session.waAccountId}:${message.from}`;
     
     // 只处理用户发来的消息，忽略机器人发出的消息
     if (message.fromMe) {
@@ -294,7 +295,30 @@ async function handleMessageEvent(
       conversation = newConversation;
     }
 
-    // 保存用户消息
+    // 发送消息到 ChatSessionDO 进行合并处理
+    const doId = env.CHAT_SESSIONS.idFromName(chatKey);
+    const stub = env.CHAT_SESSIONS.get(doId);
+    
+    const doResponse = await stub.fetch("https://do/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messageId: message.id || generateId("msg"),
+        sessionId: session.id,
+        conversationId: conversation.id,
+        chatKey,
+        from: message.from,
+        content: message.body || message.text || "",
+        timestamp: message.timestamp || Date.now(),
+        mediaUrl: message.media?.url,
+        quotedMessageId: message.quotedMessageId
+      })
+    });
+
+    const doResult = await doResponse.json();
+    console.log(`[${requestId}] Message sent to DO:`, doResult);
+
+    // 保存用户消息到数据库
     const turn = conversation.lastTurn + 1;
     const messageId = generateId("msg");
     

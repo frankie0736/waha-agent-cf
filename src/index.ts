@@ -21,8 +21,8 @@ export interface Env {
   // Vector search
   VECTORIZE: VectorizeIndex;
 
-  // Durable Objects (暂时注释，后续T004中实现)
-  // CHAT_SESSIONS: DurableObjectNamespace;
+  // Durable Objects - T016 Message Merging
+  CHAT_SESSIONS: DurableObjectNamespace;
 
   // Queues
   QUEUE_RETRIEVE: Queue<unknown>;
@@ -104,3 +104,6 @@ app.onError(errorHandler());
 // 导出主应用和类型（用于 RPC 客户端）
 export default app;
 export type AppType = typeof app;
+
+// 导出 Durable Objects - T016
+export { ChatSessionDO } from "./durable-objects/chat-session";

@@ -12,6 +12,7 @@ import { agents } from "./agents";
 import { dialogTesting } from "./dialog-testing";
 import { waha } from "./waha";
 import { webhooks } from "./webhooks";
+import { messageMerge } from "./message-merge";
 
 // API 路由主入口
 const api = new Hono<{ Bindings: Env }>();
@@ -230,7 +231,8 @@ const routes = api
   .route("/agents", agents)
   .route("/dialog-testing", dialogTesting)
   .route("/waha", waha)
-  .route("/webhooks", webhooks);
+  .route("/webhooks", webhooks)
+  .route("/message-merge", messageMerge);
 
 // 导出类型以供 RPC 客户端使用
 export type ApiType = typeof routes;

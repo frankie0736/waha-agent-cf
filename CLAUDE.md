@@ -282,6 +282,17 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 增强版测试工具（/api/webhooks/test）
   - HMAC SHA-256签名验证
   - 完整错误处理和日志记录
+- ✅ T016: Durable Objects 消息合并
+  - ChatSessionDO类完整实现（强顺序处理）
+  - 2秒消息合并窗口（Durable Object Alarms API）
+  - 智能消息合并算法（标点符号感知连接）
+  - 可配置合并窗口（1.5-3秒动态调整）
+  - chatKey管理（userId:waAccountId:whatsappChatId格式）
+  - 状态持久化和故障恢复（DO storage API）
+  - 与Webhook系统无缝集成
+  - 消息缓冲区管理和自动刷新
+  - API端点（/api/message-merge/*）
+  - 测试端点和状态监控功能
 
 ## 注意事项
 
@@ -299,7 +310,7 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T015: Webhook 处理系统
-- T016: Durable Objects 消息合并
 - T017: 人工介入控制系统
+- T018: 消息处理队列
+- T019: 拟人化回复系统
 - ...等

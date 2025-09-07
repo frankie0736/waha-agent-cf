@@ -38,15 +38,16 @@ preview_bucket_name = "waha-agent-storage-preview"
 binding = "VECTORIZE"
 index_name = "waha-agent-vectors"
 
-# Durable Objects (暂时注释，后续T004中实现)
-# [[durable_objects.bindings]]
-# name = "CHAT_SESSIONS"  
-# class_name = "ChatSessionDO"
+# Durable Objects - T016 Message Merging System
+[[durable_objects.bindings]]
+name = "CHAT_SESSIONS"  
+class_name = "ChatSessionDO"
+script_name = "waha-agent-cf"
 
 # Durable Objects Migrations  
-# [[migrations]]
-# tag = "v1"
-# new_classes = ["ChatSessionDO"]
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatSessionDO"]
 
 # 队列
 [[queues.producers]]
