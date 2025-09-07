@@ -10,6 +10,8 @@ import vectorSearch from "./vector-search";
 import { aihubmix } from "./aihubmix";
 import { agents } from "./agents";
 import { dialogTesting } from "./dialog-testing";
+import { waha } from "./waha";
+import { webhooks } from "./webhooks";
 
 // API 路由主入口
 const api = new Hono<{ Bindings: Env }>();
@@ -226,7 +228,9 @@ const routes = api
   .route("/vector-search", vectorSearch)
   .route("/aihubmix", aihubmix)
   .route("/agents", agents)
-  .route("/dialog-testing", dialogTesting);
+  .route("/dialog-testing", dialogTesting)
+  .route("/waha", waha)
+  .route("/webhooks", webhooks);
 
 // 导出类型以供 RPC 客户端使用
 export type ApiType = typeof routes;
