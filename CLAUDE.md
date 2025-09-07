@@ -336,6 +336,17 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 环境变量配置（.env.example）
   - 前端项目完整文档（README.md）
   - 待完成：Better Auth 认证状态管理集成
+- ✅ T021: 用户认证界面
+  - 完整的Google OAuth登录页面实现
+  - OAuth回调处理页面（/auth/callback）
+  - AuthContext和认证hooks（useAuth、useRequireAuth）
+  - 用户设置页面完整实现
+  - AIHubMix API Key配置界面
+  - 用户配额使用情况显示
+  - 待审核状态视觉指示器（Badge组件）
+  - 受保护路由wrapper组件
+  - 登出功能集成到侧边栏和设置页面
+  - UI组件库扩展（Card、Button、Alert、Input、Label、Badge）
 
 ## 注意事项
 
@@ -353,8 +364,9 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T021: 用户认证界面
 - T022: 知识库管理界面
 - T023: 智能体配置界面
 - T024: WhatsApp 机器人管理界面
+- T025: 对话管理和人工介入界面
+- T026: 管理员后台界面
 - ...等前端开发任务

@@ -1,6 +1,32 @@
 import { createRouter, createRoute, createRootRoute } from '@tanstack/react-router'
 import { RootLayout } from './components/layouts/RootLayout'
 import { DashboardLayout } from './components/layouts/DashboardLayout'
+import { LoginPage } from './pages/Login'
+import { AuthCallbackPage } from './pages/AuthCallback'
+import { SettingsPage } from './pages/Settings'
+import { useRequireAuth } from './contexts/AuthContext'
+
+// Protected route wrapper
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isLoading, isAuthenticated } = useRequireAuth()
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  if (!isAuthenticated) {
+    return null // useRequireAuth will redirect
+  }
+  
+  return <>{children}</>
+}
 
 // Root route
 const rootRoute = createRootRoute({
@@ -19,11 +45,29 @@ const indexRoute = createRoute({
   ),
 })
 
-// Dashboard layout route
+// Login route
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'login',
+  component: LoginPage,
+})
+
+// Auth callback route
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'auth/callback',
+  component: AuthCallbackPage,
+})
+
+// Dashboard layout route (protected)
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'dashboard',
-  component: DashboardLayout,
+  component: () => (
+    <ProtectedRoute>
+      <DashboardLayout />
+    </ProtectedRoute>
+  ),
 })
 
 // Dashboard index
@@ -74,14 +118,24 @@ const sessionsRoute = createRoute({
   ),
 })
 
+// Settings route
+const settingsRoute = createRoute({
+  getParentRoute: () => dashboardRoute,
+  path: 'settings',
+  component: SettingsPage,
+})
+
 // Create the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  loginRoute,
+  authCallbackRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,
     knowledgeBasesRoute,
     agentsRoute,
     sessionsRoute,
+    settingsRoute,
   ]),
 ])
 

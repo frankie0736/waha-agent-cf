@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from '@tanstack/react-router'
 import { cn } from '../../lib/utils'
+import { useAuth } from '../../contexts/AuthContext'
 import { 
   Home, 
   BookOpen, 
@@ -18,6 +19,7 @@ const navigation = [
 
 export function DashboardLayout() {
   const location = useLocation()
+  const { user, logout } = useAuth()
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -62,10 +64,7 @@ export function DashboardLayout() {
             </Link>
             <button
               className="flex w-full items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 hover:text-gray-900"
-              onClick={() => {
-                // Handle logout
-                console.log('Logout')
-              }}
+              onClick={logout}
             >
               <LogOut className="w-5 h-5 mr-3" />
               退出登录
@@ -86,8 +85,18 @@ export function DashboardLayout() {
               <div className="flex items-center space-x-4">
                 {/* User avatar */}
                 <div className="flex items-center">
-                  <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                  <span className="ml-2 text-sm font-medium text-gray-700">用户</span>
+                  {user?.image ? (
+                    <img
+                      src={user.image}
+                      alt={user.name || user.email}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+                  )}
+                  <span className="ml-2 text-sm font-medium text-gray-700">
+                    {user?.name || user?.email || '用户'}
+                  </span>
                 </div>
               </div>
             </div>
