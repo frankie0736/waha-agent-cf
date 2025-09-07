@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { drizzle } from "drizzle-orm/d1";
+import { eq, desc, sql } from "drizzle-orm";
 import type { Env } from "../../index";
 import { ApiErrors } from "../../middleware/error-handler";
 import * as schema from "../../../database/schema";
@@ -91,7 +92,10 @@ const sendTestMessageRoute = dialogTesting.post(
     const request = c.req.valid("json");
 
     try {
-      const response = await dialogService.sendTestMessage(userId, request);
+      const response = await dialogService.sendTestMessage(userId, {
+        ...request,
+        conversationId: request.conversationId || undefined
+      } as any);
       
       return c.json({
         success: true,
@@ -285,7 +289,7 @@ const createTestCaseRoute = dialogTesting.post(
     const testCaseData = c.req.valid("json");
 
     try {
-      const testCase = await testCaseManager.createTestCase(userId, testCaseData);
+      const testCase = await testCaseManager.createTestCase(userId, testCaseData as any);
       
       return c.json({
         success: true,

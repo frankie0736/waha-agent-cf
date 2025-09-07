@@ -5,10 +5,10 @@ import * as schema from "../../../database/schema";
 import type { TestPerformanceMetrics } from "./types";
 
 export class TestMetricsCollector {
-  private readonly db: ReturnType<typeof drizzle>;
+  private readonly db: ReturnType<typeof drizzle<typeof schema>>;
 
   constructor(private readonly env: Env) {
-    this.db = drizzle(env.DB, { schema });
+    this.db = drizzle(env.DB, { schema }) as ReturnType<typeof drizzle<typeof schema>>;
   }
 
   /**
@@ -55,7 +55,7 @@ export class TestMetricsCollector {
     }
 
     // Get messages for analysis
-    const conversationIds = conversations.map(c => c.id);
+    const conversationIds = conversations.map((c: any) => c.id);
     const messages = await this.db.query.testMessages.findMany({
       where: sql`test_conversation_id IN (${conversationIds.map(id => `'${id}'`).join(', ')})`
     });
@@ -301,15 +301,15 @@ export class TestMetricsCollector {
       return [];
     }
 
-    const conversationIds = conversations.map(c => c.id);
+    const conversationIds = conversations.map((c: any) => c.id);
     const messages = await this.db.query.testMessages.findMany({
       where: sql`test_conversation_id IN (${conversationIds.map(id => `'${id}'`).join(', ')})`
     });
 
     const responseTimes = messages
-      .filter(m => m.role === "assistant" && m.responseTime)
-      .map(m => m.responseTime!)
-      .sort((a, b) => a - b);
+      .filter((m: any) => m.role === "assistant" && m.responseTime)
+      .map((m: any) => m.responseTime!)
+      .sort((a: number, b: number) => a - b);
 
     if (responseTimes.length === 0) {
       return [];
@@ -323,7 +323,7 @@ export class TestMetricsCollector {
       const bucketMin = min + (i * bucketSize);
       const bucketMax = min + ((i + 1) * bucketSize);
       
-      const count = responseTimes.filter(time => 
+      const count = responseTimes.filter((time: number) => 
         time >= bucketMin && (i === bucketCount - 1 ? time <= bucketMax : time < bucketMax)
       ).length;
 
@@ -356,12 +356,12 @@ export class TestMetricsCollector {
       where: eq(schema.testConversations.testSessionId, testSessionId)
     });
 
-    const conversationIds = conversations.map(c => c.id);
+    const conversationIds = conversations.map((c: any) => c.id);
     const messages = await this.db.query.testMessages.findMany({
       where: sql`test_conversation_id IN (${conversationIds.map(id => `'${id}'`).join(', ')})`
     });
 
-    const errorMessages = messages.filter(m => {
+    const errorMessages = messages.filter((m: any) => {
       if (!m.debugInfo) return false;
       
       try {

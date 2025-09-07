@@ -293,6 +293,17 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 消息缓冲区管理和自动刷新
   - API端点（/api/message-merge/*）
   - 测试端点和状态监控功能
+- ✅ T017: 人工介入控制系统
+  - 双层人工介入控制（Session > Conversation 优先级）
+  - ManualInterventionController 服务类（/src/services/manual-intervention.ts）
+  - Session级控制API（暂停/恢复整个WhatsApp账号）
+  - Conversation级标点控制（逗号暂停，句号恢复）
+  - 与ChatSessionDO深度集成（消息处理前检查）
+  - 9个人工介入API端点（/api/intervention/*）
+  - KV存储的审计日志（30天TTL）
+  - safeTrim函数防止AI误触发
+  - 介入状态查询和统计功能
+  - 完整的测试端点验证控制逻辑
 
 ## 注意事项
 

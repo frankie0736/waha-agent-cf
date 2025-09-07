@@ -7,6 +7,7 @@
  */
 
 import type { Env } from "../index";
+import { ManualInterventionController, hasInterventionCommand, extractCleanMessage } from "../services/manual-intervention";
 
 // Message types and interfaces
 export interface IncomingMessage {
@@ -102,6 +103,41 @@ export class ChatSessionDO implements DurableObject {
     const message: IncomingMessage = await request.json();
     const { chatKey } = message;
 
+    // Check for punctuation control commands
+    const controller = new ManualInterventionController(this.env);
+    if (hasInterventionCommand(message.content)) {
+      const result = await controller.handlePunctuationControl(chatKey, message.content);
+      
+      // If this was a control command, don't buffer it for AI processing
+      // Just return the intervention result
+      return new Response(JSON.stringify({
+        status: "intervention_control",
+        chatKey,
+        action: result.action,
+        message: result.message,
+        autoReplyActive: result.action !== 'paused'
+      }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    // Check if auto-reply is currently active
+    const interventionStatus = await controller.shouldAutoReply(chatKey);
+    if (!interventionStatus.shouldAutoReply) {
+      // Auto-reply is paused, just acknowledge the message without processing
+      console.log(`Auto-reply paused for ${chatKey}: ${interventionStatus.reason}`);
+      
+      return new Response(JSON.stringify({
+        status: "auto_reply_paused",
+        chatKey,
+        reason: interventionStatus.reason,
+        sessionState: interventionStatus.sessionState,
+        conversationState: interventionStatus.conversationState
+      }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     // Get or create buffer for this chat
     let buffer = this.buffers.get(chatKey);
     if (!buffer) {
@@ -167,14 +203,24 @@ export class ChatSessionDO implements DurableObject {
       return;
     }
 
+    // Double-check intervention status before processing
+    const controller = new ManualInterventionController(this.env);
+    const interventionStatus = await controller.shouldAutoReply(chatKey);
+    if (!interventionStatus.shouldAutoReply) {
+      console.log(`Skipping processing for ${chatKey} - auto-reply is paused: ${interventionStatus.reason}`);
+      // Clear buffer without processing
+      this.buffers.delete(chatKey);
+      return;
+    }
+
     // Sort messages by timestamp to ensure order
     buffer.messages.sort((a, b) => a.timestamp - b.timestamp);
 
     // Create merged message
     const mergedMessage: MergedMessage = {
       chatKey,
-      sessionId: buffer.messages[0].sessionId,
-      conversationId: buffer.messages[0].conversationId,
+      sessionId: buffer.messages[0]?.sessionId || '',
+      conversationId: buffer.messages[0]?.conversationId || '',
       messages: buffer.messages,
       mergedContent: this.mergeMessageContent(buffer.messages),
       startTime: buffer.startTime,
@@ -203,7 +249,7 @@ export class ChatSessionDO implements DurableObject {
     }
 
     // Join messages with appropriate spacing
-    const contents = messages.map(m => m.content.trim());
+    const contents = messages.map(m => m.content?.trim() || '');
     
     // Smart merge: add space between messages unless they end/start with punctuation
     let merged = contents[0] || "";
