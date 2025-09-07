@@ -13,7 +13,7 @@
     "build:frontend": "cd frontend && bun run build",
     "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
-    "db:push:local": "wrangler d1 execute waha-agent-local --local --file=database/migrations/0000_cooing_blizzard.sql",
+    "db:push:local": "wrangler d1 execute waha-agent --local --file=database/migrations/0000_better_auth_clean.sql",
     "db:push:remote": "wrangler d1 execute waha-agent --file=database/migrations/0000_cooing_blizzard.sql",
     "db:seed": "bun run scripts/seed.ts",
     "db:studio": "drizzle-kit studio",

@@ -86,6 +86,20 @@ wrangler deploy --env production
 - `ALL /api/auth/*` - Better Auth 处理器
 - `GET /auth/demo` - 认证演示页面
 
+### 知识库管理端点
+- `POST /api/knowledge-base` - 创建知识库
+- `GET /api/knowledge-base` - 获取知识库列表
+- `GET /api/knowledge-base/:kb_id` - 获取知识库详情
+- `PUT /api/knowledge-base/:kb_id` - 更新知识库
+- `DELETE /api/knowledge-base/:kb_id` - 删除知识库
+
+### 文档管理端点
+- `POST /api/documents/upload` - 上传文档文件
+- `GET /api/documents/list/:kb_id` - 获取知识库文档列表
+- `GET /api/documents/supported-formats` - 获取支持的文件格式
+- `GET /api/documents/:doc_id` - 获取文档详情
+- `DELETE /api/documents/:doc_id` - 删除文档
+
 ### 测试端点（仅开发环境）
 - `GET /api/test/echo` - Echo 测试
 - `POST /api/test/validate` - 数据验证测试
@@ -159,6 +173,13 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 错误处理中间件
   - 请求日志和性能监控
   - 基础 API 路由结构
+- ✅ T005: 文件上传与存储系统
+  - 多格式文件上传支持（TXT, MD, PDF, Word, Excel, PPT）
+  - Cloudflare R2 存储集成
+  - 文件元数据管理和数据库记录
+  - 文件大小限制和格式验证（50MB）
+  - 安全文件命名和路径管理
+  - 完整的 CRUD API 端点
 
 ## 注意事项
 
@@ -167,12 +188,16 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 3. **日志记录**: 请求日志包含性能指标和错误追踪
 4. **开发环境**: 测试端点仅在开发环境可用
 5. **认证状态**: Google OAuth 需要配置有效凭据才能使用
-6. **任务跟踪**: 完成任务后请及时更新 TASKS.md 文件和本文件，保持任务状态同步
+6. **任务完成工作流**: 每完成一个任务后必须：
+   - 在 docs/TASKS.md 中标记任务为完成状态
+   - 更新本 CLAUDE.md 文件的"已完成任务"部分
+   - 提交代码变更到 git 仓库
+   - 保持任务状态与实际进度同步
 
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T005: 用户管理系统
-- T006: 租户管理
-- T007: WhatsApp 会话管理
+- T006: 文档解析与处理
+- T007: 向量化存储与检索
+- T008: 智能体管理系统
 - ...等

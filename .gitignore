@@ -10,6 +10,7 @@ yarn.lock
 .env.development
 .env.test
 .env.production
+.dev.vars
 
 # Cloudflare
 .wrangler/

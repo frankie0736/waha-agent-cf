@@ -3,6 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { Env } from "../../index";
 import { ApiErrors } from "../../middleware/error-handler";
+import { documents } from "./documents";
+import { knowledgeBase } from "./knowledge-base";
 
 // API 路由主入口
 const api = new Hono<{ Bindings: Env }>();
@@ -212,7 +214,9 @@ const routes = api
   .route("/", versionRoute)
   .route("/", statsRoute)
   .route("/", testRoute)
-  .route("/", errorTestRoute);
+  .route("/", errorTestRoute)
+  .route("/knowledge-base", knowledgeBase)
+  .route("/documents", documents);
 
 // 导出类型以供 RPC 客户端使用
 export type ApiType = typeof routes;
