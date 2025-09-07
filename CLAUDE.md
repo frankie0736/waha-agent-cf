@@ -347,6 +347,20 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 受保护路由wrapper组件
   - 登出功能集成到侧边栏和设置页面
   - UI组件库扩展（Card、Button、Alert、Input、Label、Badge）
+- ✅ T022: 知识库管理界面
+  - 完整的知识库CRUD界面（创建、列表、编辑、删除）
+  - 文件上传界面支持多格式（TXT, MD, PDF, Word, Excel, PPT）
+  - 拖拽上传和批量上传功能
+  - URL单页面抓取和Sitemap批量爬取界面
+  - 文档列表管理（查看状态、删除操作）
+  - 知识库向量搜索测试功能
+  - 实时处理进度显示（Progress组件）
+  - 批量操作和删除确认对话框
+  - 配额使用情况显示和限制检查
+  - 响应式设计适配移动端
+  - 集成TanStack Query数据管理
+  - 完整的错误处理和用户提示
+  - UI组件扩展（Dialog、Textarea、Progress、Tabs）
 
 ## 注意事项
 
@@ -364,7 +378,6 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T022: 知识库管理界面
 - T023: 智能体配置界面
 - T024: WhatsApp 机器人管理界面
 - T025: 对话管理和人工介入界面

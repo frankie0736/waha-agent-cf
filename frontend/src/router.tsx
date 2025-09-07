@@ -4,6 +4,7 @@ import { DashboardLayout } from './components/layouts/DashboardLayout'
 import { LoginPage } from './pages/Login'
 import { AuthCallbackPage } from './pages/AuthCallback'
 import { SettingsPage } from './pages/Settings'
+import { KnowledgeBasePage } from './pages/KnowledgeBase'
 import { useRequireAuth } from './contexts/AuthContext'
 
 // Protected route wrapper
@@ -86,12 +87,7 @@ const dashboardIndexRoute = createRoute({
 const knowledgeBasesRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'knowledge-bases',
-  component: () => (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-4">知识库管理</h2>
-      <p className="text-gray-600">管理您的知识库</p>
-    </div>
-  ),
+  component: KnowledgeBasePage,
 })
 
 // Agents route
