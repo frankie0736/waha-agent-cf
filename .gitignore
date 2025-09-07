@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+bun.lockb
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Cloudflare
+.wrangler/
+wrangler.toml.bak
+
+# Build outputs
+dist/
+build/
+.output/
+
+# Database
+*.db
+*.sqlite
+*.db-journal
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+
+# Frontend build
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# Testing
+.coverage/
+test-results/
+
+# Biome
+.biome-cache/
