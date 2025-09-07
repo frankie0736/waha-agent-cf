@@ -1,11 +1,12 @@
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { eq, count, sum } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { Hono } from "hono";
 import { z } from "zod";
+import * as schema from "../../../database/schema";
 import type { Env } from "../../index";
 import { ApiErrors } from "../../middleware/error-handler";
-import * as schema from "../../../database/schema";
-import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
+import { VectorEmbeddingManager, SemanticSearchService } from "../../services/vector-embedding";
 
 const knowledgeBase = new Hono<{ Bindings: Env }>();
 
@@ -16,39 +17,59 @@ const createRoute = knowledgeBase.post(
     "json",
     z.object({
       name: z.string().min(1, "知识库名称不能为空").max(100, "知识库名称不能超过100个字符"),
-      description: z.string().max(500, "描述不能超过500个字符").optional()
+      description: z.string().max(500, "描述不能超过500个字符").optional(),
     })
   ),
   async (c) => {
     const { name, description } = c.req.valid("json");
-    
+
     // TODO: 从会话中获取用户ID
     // const session = await getSession(c);
     // if (!session) throw ApiErrors.Unauthorized();
-    const userId = "test-user-id"; // 临时使用测试用户ID
-    
+    const userId = "test-user-1"; // 临时使用测试用户ID
+
     const db = drizzle(c.env.DB, { schema });
-    
+
     try {
+      // 获取用户信息和当前知识库数量
+      const user = await db.query.users.findFirst({
+        where: eq(schema.users.id, userId),
+      });
+
+      if (!user) {
+        throw ApiErrors.Unauthorized("用户不存在");
+      }
+
+      const existingKbs = await db.query.kbSpaces.findMany({
+        where: eq(schema.kbSpaces.userId, userId),
+        columns: { id: true },
+      });
+
+      if (existingKbs.length >= user.kbLimit) {
+        throw ApiErrors.Forbidden("知识库数量已达到上限");
+      }
+
       const kbId = crypto.randomUUID();
       const now = new Date();
-      
+
       await db.insert(schema.kbSpaces).values({
         id: kbId,
         userId,
         name,
         description: description || null,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
 
-      return c.json({
-        id: kbId,
-        name,
-        description,
-        createdAt: now.toISOString()
-      }, 201);
-      
+      return c.json(
+        {
+          id: kbId,
+          name,
+          description,
+          createdAt: now.toISOString(),
+        },
+        201
+      );
     } catch (error) {
       console.error("Create knowledge base error:", error);
       throw ApiErrors.InternalServerError("创建知识库失败");
@@ -63,40 +84,39 @@ const listRoute = knowledgeBase.get(
     "query",
     z.object({
       limit: z.string().transform(Number).pipe(z.number().min(1).max(50)).default(20),
-      offset: z.string().transform(Number).pipe(z.number().min(0)).default(0)
+      offset: z.string().transform(Number).pipe(z.number().min(0)).default(0),
     })
   ),
   async (c) => {
     const { limit, offset } = c.req.valid("query");
-    
-    // TODO: 从会话中获取用户ID  
-    const userId = "test-user-id";
-    
+
+    // TODO: 从会话中获取用户ID
+    const userId = "test-user-1";
+
     const db = drizzle(c.env.DB, { schema });
-    
+
     try {
       const kbSpaces = await db.query.kbSpaces.findMany({
         where: eq(schema.kbSpaces.userId, userId),
         limit,
         offset,
-        orderBy: (kbs, { desc }) => [desc(kbs.createdAt)]
+        orderBy: (kbs, { desc }) => [desc(kbs.createdAt)],
       });
 
       return c.json({
-        knowledgeBases: kbSpaces.map(kb => ({
+        knowledgeBases: kbSpaces.map((kb) => ({
           id: kb.id,
           name: kb.name,
           description: kb.description,
           createdAt: new Date(kb.createdAt).toISOString(),
-          updatedAt: kb.updatedAt ? new Date(kb.updatedAt).toISOString() : null
+          updatedAt: kb.updatedAt ? new Date(kb.updatedAt).toISOString() : null,
         })),
         pagination: {
           limit,
           offset,
-          total: kbSpaces.length
-        }
+          total: kbSpaces.length,
+        },
       });
-      
     } catch (error) {
       console.error("List knowledge bases error:", error);
       throw ApiErrors.InternalServerError("获取知识库列表失败");
@@ -110,27 +130,31 @@ const getRoute = knowledgeBase.get(
   zValidator(
     "param",
     z.object({
-      kb_id: z.string().uuid()
+      kb_id: z.string().uuid(),
     })
   ),
   async (c) => {
     const { kb_id } = c.req.valid("param");
-    
+
     const db = drizzle(c.env.DB, { schema });
-    
+
     try {
       const kbSpace = await db.query.kbSpaces.findFirst({
-        where: eq(schema.kbSpaces.id, kb_id)
+        where: eq(schema.kbSpaces.id, kb_id),
       });
-      
+
       if (!kbSpace) {
         throw ApiErrors.NotFound("知识库不存在");
       }
 
-      // 获取文档统计
-      const documentCount = await db.query.kbDocuments.findMany({
-        where: eq(schema.kbDocuments.kbId, kb_id)
-      });
+      // 获取文档统计 (optimized queries)
+      const [documentStats] = await db
+        .select({
+          count: count(schema.kbDocuments.id),
+          totalSize: sum(schema.kbDocuments.filesize),
+        })
+        .from(schema.kbDocuments)
+        .where(eq(schema.kbDocuments.kbId, kb_id));
 
       return c.json({
         id: kbSpace.id,
@@ -139,11 +163,10 @@ const getRoute = knowledgeBase.get(
         createdAt: new Date(kbSpace.createdAt).toISOString(),
         updatedAt: kbSpace.updatedAt ? new Date(kbSpace.updatedAt).toISOString() : null,
         stats: {
-          documentCount: documentCount.length,
-          totalSize: documentCount.reduce((sum, doc) => sum + doc.filesize, 0)
-        }
+          documentCount: documentStats?.count || 0,
+          totalSize: Number(documentStats?.totalSize) || 0,
+        },
       });
-      
     } catch (error) {
       console.error("Get knowledge base error:", error);
       if (error instanceof Error && error.message.includes("ApiError")) {
@@ -160,47 +183,44 @@ const updateRoute = knowledgeBase.put(
   zValidator(
     "param",
     z.object({
-      kb_id: z.string().uuid()
+      kb_id: z.string().uuid(),
     })
   ),
   zValidator(
     "json",
     z.object({
       name: z.string().min(1).max(100).optional(),
-      description: z.string().max(500).optional()
+      description: z.string().max(500).optional(),
     })
   ),
   async (c) => {
     const { kb_id } = c.req.valid("param");
     const updateData = c.req.valid("json");
-    
+
     const db = drizzle(c.env.DB, { schema });
-    
+
     try {
       const kbSpace = await db.query.kbSpaces.findFirst({
-        where: eq(schema.kbSpaces.id, kb_id)
+        where: eq(schema.kbSpaces.id, kb_id),
       });
-      
+
       if (!kbSpace) {
         throw ApiErrors.NotFound("知识库不存在");
       }
 
       const now = new Date();
-      const updateFields: Record<string, any> = { updatedAt: now };
+      const updateFields: Record<string, unknown> = { updatedAt: now };
       if (updateData.name !== undefined) updateFields.name = updateData.name;
       if (updateData.description !== undefined) updateFields.description = updateData.description;
-      
-      await db.update(schema.kbSpaces)
-        .set(updateFields)
-        .where(eq(schema.kbSpaces.id, kb_id));
+
+      await db.update(schema.kbSpaces).set(updateFields).where(eq(schema.kbSpaces.id, kb_id));
 
       return c.json({
         id: kb_id,
         name: updateData.name || kbSpace.name,
         description: updateData.description || kbSpace.description,
-        updatedAt: now.toISOString()
+        updatedAt: now.toISOString(),
       });
-      
     } catch (error) {
       console.error("Update knowledge base error:", error);
       if (error instanceof Error && error.message.includes("ApiError")) {
@@ -217,47 +237,58 @@ const deleteRoute = knowledgeBase.delete(
   zValidator(
     "param",
     z.object({
-      kb_id: z.string().uuid()
+      kb_id: z.string().uuid(),
     })
   ),
   async (c) => {
     const { kb_id } = c.req.valid("param");
-    
+
     const db = drizzle(c.env.DB, { schema });
-    
+
     try {
       const kbSpace = await db.query.kbSpaces.findFirst({
-        where: eq(schema.kbSpaces.id, kb_id)
+        where: eq(schema.kbSpaces.id, kb_id),
       });
-      
+
       if (!kbSpace) {
         throw ApiErrors.NotFound("知识库不存在");
       }
 
       // 获取所有相关文档
       const documents = await db.query.kbDocuments.findMany({
-        where: eq(schema.kbDocuments.kbId, kb_id)
+        where: eq(schema.kbDocuments.kbId, kb_id),
       });
 
       // 删除 R2 中的所有文件
-      await Promise.all(
-        documents.map(doc => c.env.R2.delete(doc.r2Key))
-      );
+      await Promise.all(documents.map((doc) => c.env.R2.delete(doc.r2Key)));
+
+      // 删除向量数据 (Integration with T008 vectorization)
+      try {
+        const vectorManager = new VectorEmbeddingManager(c.env);
+        const vectorResult = await vectorManager.deleteVectorsForKnowledgeBase(kb_id);
+        if (vectorResult.success) {
+          console.log(`Successfully deleted ${vectorResult.processedCount} vectors for KB: ${kb_id}`);
+        } else {
+          console.warn(`Partial vector deletion for KB ${kb_id}:`, vectorResult.errors);
+        }
+      } catch (vectorError) {
+        console.warn(`Failed to delete vectors for KB ${kb_id}:`, vectorError);
+        // Continue with deletion - don't fail the entire operation since vectors can be cleaned up separately
+      }
 
       // 删除相关的 chunks
       await db.delete(schema.kbChunks).where(eq(schema.kbChunks.kbId, kb_id));
-      
+
       // 删除相关文档记录
       await db.delete(schema.kbDocuments).where(eq(schema.kbDocuments.kbId, kb_id));
-      
+
       // 删除知识库记录
       await db.delete(schema.kbSpaces).where(eq(schema.kbSpaces.id, kb_id));
 
       return c.json({
         message: "知识库删除成功",
-        deletedId: kb_id
+        deletedId: kb_id,
       });
-      
     } catch (error) {
       console.error("Delete knowledge base error:", error);
       if (error instanceof Error && error.message.includes("ApiError")) {
@@ -268,13 +299,77 @@ const deleteRoute = knowledgeBase.delete(
   }
 );
 
+// 知识库搜索端点 (Integration with T008 semantic search)
+const searchRoute = knowledgeBase.post(
+  "/:kb_id/search",
+  zValidator(
+    "param",
+    z.object({
+      kb_id: z.string().uuid(),
+    })
+  ),
+  zValidator(
+    "json", 
+    z.object({
+      query: z.string().min(1, "搜索查询不能为空").max(1000, "查询过长"),
+      limit: z.number().int().min(1).max(20).default(5),
+      threshold: z.number().min(0).max(1).default(0.7),
+      includeDocument: z.boolean().default(true),
+    })
+  ),
+  async (c) => {
+    const { kb_id } = c.req.valid("param");
+    const { query, limit, threshold, includeDocument } = c.req.valid("json");
+
+    const db = drizzle(c.env.DB, { schema });
+
+    try {
+      // 验证知识库存在
+      const kbSpace = await db.query.kbSpaces.findFirst({
+        where: eq(schema.kbSpaces.id, kb_id),
+      });
+
+      if (!kbSpace) {
+        throw ApiErrors.NotFound("知识库不存在");
+      }
+
+      // 执行语义搜索
+      const searchService = new SemanticSearchService(c.env);
+      const results = await searchService.searchWithinKnowledgeBase(query, kb_id, {
+        limit,
+        threshold,
+        includeDocument,
+        includeKnowledgeBase: false, // Already know the KB
+      });
+
+      return c.json({
+        query,
+        knowledgeBase: {
+          id: kbSpace.id,
+          name: kbSpace.name,
+        },
+        results,
+        count: results.length,
+        searchTime: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Knowledge base search error:", error);
+      if (error instanceof Error && error.message.includes("ApiError")) {
+        throw error;
+      }
+      throw ApiErrors.InternalServerError("知识库搜索失败");
+    }
+  }
+);
+
 // 组合路由
 const routes = knowledgeBase
   .route("/", createRoute)
   .route("/", listRoute)
   .route("/", getRoute)
   .route("/", updateRoute)
-  .route("/", deleteRoute);
+  .route("/", deleteRoute)
+  .route("/", searchRoute);
 
 export { routes as knowledgeBase };
 export type KnowledgeBaseType = typeof routes;

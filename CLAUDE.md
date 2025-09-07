@@ -205,6 +205,14 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
   - 完整的向量搜索API端点（/api/vector-search/*）
   - 与文档处理管道的无缝集成
   - TypeScript严格模式兼容性
+- ✅ T009: 知识库管理系统
+  - 知识库CRUD API（创建、列表、详情、更新、删除）
+  - 用户配额检查和限制管理
+  - 级联删除（文档、切片、向量数据清理）
+  - 知识库统计信息（文档数量、存储大小）
+  - 语义搜索集成（/api/knowledge-base/:kb_id/search）
+  - 完整的知识库管理API端点（/api/knowledge-base/*）
+  - 与向量化系统无缝集成
 
 ## 注意事项
 
@@ -222,7 +230,7 @@ throw ApiErrors.ValidationError("Invalid input", { field: "email" });
 ## 下一步
 
 继续执行 TASKS.md 中的后续任务：
-- T009: 知识库管理系统
 - T010: 智能体管理系统
 - T011: WhatsApp 集成
+- T012: AIHubMix 客户端集成
 - ...等
